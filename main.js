@@ -1,7 +1,8 @@
 const Apify = require('apify');
 
 (async () => {
-    const { keyword } = await Apify.getInput();
+    const input = await Apify.utils.input.getValue();
+    const keyword = input.keyword;
 
     const requestList = await Apify.openRequestList('start-urls', [
         { url: `https://www.instagram.com/explore/tags/${keyword}/` }
