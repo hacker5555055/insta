@@ -1,8 +1,10 @@
 const Apify = require('apify');
 
 Apify.main(async () => {
-    const { keyword } = await Apify.getInput(); // Input keyword dynamically (like 'doctor' or 'realestate')
-    
+    // Capture the input keyword (for example, {"helloWorld": "doctor"})
+    const input = await Apify.getInput();
+    const keyword = input.helloWorld || 'doctor';  // Default to "doctor" if no input is provided
+
     const requestList = await Apify.openRequestList('start-urls', [
         { url: `https://www.instagram.com/explore/tags/${keyword}/` }
     ]);
@@ -10,7 +12,7 @@ Apify.main(async () => {
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
         handlePageFunction: async ({ page, request }) => {
-            console.log(`Processing search results for ${keyword} on ${request.url}...`);
+            console.log(`Processing search results for keyword: ${keyword}`);
 
             // Scroll to load more results
             await page.evaluate(async () => {
@@ -20,21 +22,19 @@ Apify.main(async () => {
                 }
             });
 
-            // Select profile URLs from search results page
+            // Select profile URLs or posts from search results page
             const profileLinks = await page.$$eval('a[href*="/p/"]', (links) =>
                 links.map(link => link.href)
             );
 
-            // Go through each profile
+            // Visit each profile and extract data
             for (const link of profileLinks) {
                 await page.goto(link, { waitUntil: 'networkidle2' });
 
-                // Extract data
                 const username = await page.$eval('h2', el => el.textContent.trim());
                 const bio = await page.$eval('.-vDIg span', el => el.textContent.trim());
                 const followers = await page.$eval('a[href$="followers/"] span', el => el.textContent);
 
-                // Save results to Apify dataset
                 await Apify.pushData({ username, bio, followers, profileLink: link });
             }
         },
