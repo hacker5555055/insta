@@ -1,9 +1,7 @@
 const Apify = require('apify');
 
 Apify.main(async () => {
-    // Capture the input keyword (for example, {"helloWorld": "doctor"})
-    const input = await Apify.getInput();
-    const keyword = input.helloWorld || 'doctor';  // Default to "doctor" if no input is provided
+    const { keyword } = await Apify.getInput();
 
     const requestList = await Apify.openRequestList('start-urls', [
         { url: `https://www.instagram.com/explore/tags/${keyword}/` }
@@ -11,26 +9,27 @@ Apify.main(async () => {
 
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
+        launchContext: {
+            useChrome: true,
+            stealth: true, // Enables stealth mode
+        },
         handlePageFunction: async ({ page, request }) => {
-            console.log(`Processing search results for keyword: ${keyword}`);
+            console.log(`Processing: ${request.url}`);
 
             // Scroll to load more results
             await page.evaluate(async () => {
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < 3; i++) { // Limit scrolls to avoid detection
                     window.scrollBy(0, window.innerHeight);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
                 }
             });
 
-            // Select profile URLs or posts from search results page
-            const profileLinks = await page.$$eval('a[href*="/p/"]', (links) =>
-                links.map(link => link.href)
-            );
-
-            // Visit each profile and extract data
+            // Extract profile URLs
+            const profileLinks = await page.$$eval('a[href*="/p/"]', links => links.map(link => link.href));
+            
             for (const link of profileLinks) {
                 await page.goto(link, { waitUntil: 'networkidle2' });
-
+                
                 const username = await page.$eval('h2', el => el.textContent.trim());
                 const bio = await page.$eval('.-vDIg span', el => el.textContent.trim());
                 const followers = await page.$eval('a[href$="followers/"] span', el => el.textContent);
@@ -42,3 +41,4 @@ Apify.main(async () => {
 
     await crawler.run();
 });
+
