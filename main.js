@@ -1,6 +1,6 @@
 const Apify = require('apify');
 
-Apify.main(async () => {
+(async () => {
     const { keyword } = await Apify.getInput();
 
     const requestList = await Apify.openRequestList('start-urls', [
@@ -40,5 +40,4 @@ Apify.main(async () => {
     });
 
     await crawler.run();
-});
-
+})();
